@@ -23,4 +23,5 @@ export type Sale = {
   discountAmount: number
   total: number
   method: 'cash' | 'card'
+  cashier?: string
 }

@@ -4,20 +4,22 @@ import type { Sale } from './types'
 
 type SaleStore = {
   sales: Sale[]
-  addSale: (sale: Omit<Sale, 'id' | 'date'>) => void
+  addSale: (sale: Omit<Sale, 'id' | 'date'>) => Sale
 }
 
 export const useSaleStore = create<SaleStore>()(
   persist(
     (set) => ({
       sales: [],
-      addSale: (sale) =>
-        set((state) => ({
-          sales: [
-            { id: Date.now(), date: new Date().toISOString(), ...sale },
-            ...state.sales,
-          ],
-        })),
+      addSale: (data) => {
+        const sale: Sale = {
+          id: Date.now(),
+          date: new Date().toISOString(),
+          ...data,
+        }
+        set((state) => ({ sales: [sale, ...state.sales] }))
+        return sale
+      },
     }),
     { name: 'posvera-sales' }
   )

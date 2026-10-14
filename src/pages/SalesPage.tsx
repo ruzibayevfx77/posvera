@@ -30,7 +30,10 @@ function SalesPage() {
           <div key={sale.id} className="rounded-xl bg-slate-800 p-4">
             <div className="flex justify-between text-sm text-slate-400">
               <span>{new Date(sale.date).toLocaleString()}</span>
-              <span>{sale.method === 'cash' ? 'Naqd' : 'Karta'}</span>
+              <span>
+                {sale.cashier ? `${sale.cashier} • ` : ''}
+                {sale.method === 'cash' ? 'Naqd' : 'Karta'}
+              </span>
             </div>
             <ul className="my-2 space-y-1">
               {sale.items.map((item, index) => (

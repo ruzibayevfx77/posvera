@@ -1,17 +1,21 @@
 import { useState } from 'react'
 import { useProductStore } from '../store'
 import { useSaleStore } from '../salesStore'
+import { useAuthStore } from '../authStore'
 import PaymentModal from '../PaymentModal'
-import type { CartItem, PaymentResult, Product } from '../types'
+import Receipt from '../Receipt'
+import type { CartItem, PaymentResult, Product, Sale } from '../types'
 
 function CashierPage() {
   const products = useProductStore((state) => state.products)
   const decreaseStock = useProductStore((state) => state.decreaseStock)
   const addSale = useSaleStore((state) => state.addSale)
+  const user = useAuthStore((state) => state.user)
 
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState<CartItem[]>([])
   const [showPayment, setShowPayment] = useState(false)
+  const [receipt, setReceipt] = useState<Sale | null>(null)
 
   const filtered = products.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
@@ -47,15 +51,17 @@ function CashierPage() {
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
   const handleSuccess = (payment: PaymentResult) => {
-    addSale({
+    const sale = addSale({
       items: cart.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
       discountAmount: payment.discountAmount,
       total: payment.finalTotal,
       method: payment.method,
+      cashier: user?.name,
     })
     decreaseStock(cart.map((i) => ({ id: i.id, quantity: i.quantity })))
     setCart([])
     setShowPayment(false)
+    setReceipt(sale)
   }
 
   return (
@@ -145,6 +151,9 @@ function CashierPage() {
           onSuccess={handleSuccess}
         />
       )}
+
+      {/* Chek */}
+      {receipt && <Receipt sale={receipt} onClose={() => setReceipt(null)} />}
     </div>
   )
 }
