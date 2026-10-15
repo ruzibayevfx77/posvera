@@ -5,8 +5,8 @@ import type { Sale } from './types'
 type NewSale = {
   items: { productId: number; quantity: number }[]
   discountAmount: number
-  method: 'cash' | 'card'
-  cashier?: string
+  cardAmount: number
+  cashReceived: number
 }
 
 type SaleStore = {

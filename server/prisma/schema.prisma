@@ -24,6 +24,7 @@ model Sale {
   method         String
   cashier        String?
   items          SaleItem[]
+  payments       Payment[]
 }
 
 model SaleItem {
@@ -37,10 +38,23 @@ model SaleItem {
   quantity  Int
 }
 
+model Payment {
+  id     Int    @id @default(autoincrement())
+  saleId Int
+  sale   Sale   @relation(fields: [saleId], references: [id])
+  type   String
+  amount Int
+}
+
 model User {
   id           Int    @id @default(autoincrement())
   username     String @unique
   passwordHash String
   name         String
   role         String
+}
+
+model Setting {
+  key   String @id
+  value String
 }

@@ -10,10 +10,17 @@ export type CartItem = Product & {
   quantity: number
 }
 
+export type PaymentType = 'cash' | 'card'
+
+export type Payment = {
+  type: PaymentType
+  amount: number
+}
+
 export type PaymentResult = {
-  method: 'cash' | 'card'
   discountAmount: number
-  finalTotal: number
+  cardAmount: number
+  cashReceived: number
 }
 
 export type Sale = {
@@ -22,6 +29,8 @@ export type Sale = {
   items: { name: string; price: number; quantity: number }[]
   discountAmount: number
   total: number
-  method: 'cash' | 'card'
+  method: 'cash' | 'card' | 'mixed'
+  payments: Payment[]
+  change?: number
   cashier?: string
 }

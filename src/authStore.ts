@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { API_URL } from './config'
+import { translate } from './i18n'
 
 export type Role = 'admin' | 'cashier'
 
@@ -31,13 +32,15 @@ export const useAuthStore = create<AuthStore>()(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password }),
           })
+          if (res.status === 401) return translate('login.invalid')
+
           const data = await res.json().catch(() => ({}))
-          if (!res.ok) return data.error || 'Xato chiqdi'
+          if (!res.ok) return data.error || translate('error.generic')
 
           set({ user: data.user, token: data.token })
           return null
         } catch {
-          return "Serverga ulanib bo'lmadi"
+          return translate('error.network')
         }
       },
 

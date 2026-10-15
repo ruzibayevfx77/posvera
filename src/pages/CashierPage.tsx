@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import { useProductStore } from '../store'
 import { useSaleStore } from '../salesStore'
-import { useAuthStore } from '../authStore'
+import { useFormat, useT } from '../i18n'
 import PaymentModal from '../PaymentModal'
 import Receipt from '../Receipt'
 import type { CartItem, PaymentResult, Product, Sale } from '../types'
 
 function CashierPage() {
+  const t = useT()
+  const format = useFormat()
   const products = useProductStore((state) => state.products)
   const fetchProducts = useProductStore((state) => state.fetchProducts)
   const addSale = useSaleStore((state) => state.addSale)
-  const user = useAuthStore((state) => state.user)
 
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState<CartItem[]>([])
@@ -58,15 +59,15 @@ function CashierPage() {
       const sale = await addSale({
         items: cart.map((i) => ({ productId: i.id, quantity: i.quantity })),
         discountAmount: payment.discountAmount,
-        method: payment.method,
-        cashier: user?.name,
+        cardAmount: payment.cardAmount,
+        cashReceived: payment.cashReceived,
       })
       await fetchProducts()
       setCart([])
       setShowPayment(false)
       setReceipt(sale)
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Sotuvni saqlashda xato chiqdi")
+      alert(e instanceof Error ? e.message : t('cashier.saveError'))
     } finally {
       setSaving(false)
     }
@@ -79,7 +80,7 @@ function CashierPage() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Mahsulot qidirish..."
+          placeholder={t('cashier.search')}
           className="mb-6 w-full rounded-lg bg-slate-800 p-3 outline-none focus:ring-2 focus:ring-emerald-400"
         />
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
@@ -92,15 +93,15 @@ function CashierPage() {
             >
               <p className="font-semibold">{product.name}</p>
               <p className="text-sm text-slate-400">{product.category}</p>
-              <p className="mt-2 text-emerald-400">
-                {product.price.toLocaleString()} so'm
-              </p>
+              <p className="mt-2 text-emerald-400">{format.money(product.price)}</p>
               <p
                 className={`mt-1 text-sm ${
                   product.stock <= 5 ? 'text-red-400' : 'text-slate-400'
                 }`}
               >
-                {product.stock === 0 ? 'Tugagan' : `Qoldiq: ${product.stock}`}
+                {product.stock === 0
+                  ? t('cashier.soldOut')
+                  : t('cashier.stock', { n: product.stock })}
               </p>
             </button>
           ))}
@@ -109,14 +110,16 @@ function CashierPage() {
 
       {/* O'ng tomon: savat */}
       <div className="flex w-96 flex-col bg-slate-800 p-6">
-        <h2 className="mb-4 text-2xl font-bold">Savat</h2>
+        <h2 className="mb-4 text-2xl font-bold">{t('cashier.cart')}</h2>
         <div className="flex-1 space-y-3 overflow-y-auto">
-          {cart.length === 0 && <p className="text-slate-400">Savat bo'sh</p>}
+          {cart.length === 0 && (
+            <p className="text-slate-400">{t('cashier.cartEmpty')}</p>
+          )}
           {cart.map((item) => (
             <div key={item.id} className="rounded-lg bg-slate-700 p-3">
               <div className="flex justify-between">
                 <span>{item.name}</span>
-                <span>{(item.price * item.quantity).toLocaleString()}</span>
+                <span>{format.number(item.price * item.quantity)}</span>
               </div>
               <div className="mt-2 flex items-center gap-3">
                 <button
@@ -138,15 +141,15 @@ function CashierPage() {
         </div>
         <div className="mt-4 border-t border-slate-600 pt-4">
           <div className="flex justify-between text-xl font-bold">
-            <span>Jami:</span>
-            <span className="text-emerald-400">{total.toLocaleString()} so'm</span>
+            <span>{t('cashier.total')}</span>
+            <span className="text-emerald-400">{format.money(total)}</span>
           </div>
           <button
             onClick={() => setShowPayment(true)}
             disabled={cart.length === 0}
             className="mt-4 w-full rounded-lg bg-emerald-500 p-3 font-bold text-slate-900 hover:bg-emerald-400 disabled:opacity-40"
           >
-            To'lov qilish
+            {t('cashier.pay')}
           </button>
         </div>
       </div>
@@ -155,6 +158,7 @@ function CashierPage() {
       {showPayment && (
         <PaymentModal
           total={total}
+          saving={saving}
           onClose={() => setShowPayment(false)}
           onSuccess={handleSuccess}
         />

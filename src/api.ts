@@ -1,5 +1,6 @@
 import { API_URL } from './config'
 import { useAuthStore } from './authStore'
+import { translate } from './i18n'
 
 export async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = useAuthStore.getState().token
@@ -14,17 +15,17 @@ export async function request<T>(path: string, options?: RequestInit): Promise<T
       },
     })
   } catch {
-    throw new Error("Serverga ulanib bo'lmadi")
+    throw new Error(translate('error.network'))
   }
 
   if (res.status === 401) {
     useAuthStore.getState().logout()
-    throw new Error('Sessiya tugagan, qaytadan kiring')
+    throw new Error(translate('error.session'))
   }
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
-    throw new Error(data.error || `Server xatosi: ${res.status}`)
+    throw new Error(data.error || `${translate('error.generic')} (${res.status})`)
   }
 
   if (res.status === 204) return undefined as T
