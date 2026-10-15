@@ -1,44 +1,45 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import { products as initialProducts } from './data'
+import { request } from './api'
 import type { Product } from './types'
 
 type ProductData = Omit<Product, 'id'>
 
 type ProductStore = {
   products: Product[]
-  addProduct: (data: ProductData) => void
-  updateProduct: (id: number, data: ProductData) => void
-  deleteProduct: (id: number) => void
-  decreaseStock: (items: { id: number; quantity: number }[]) => void
+  fetchProducts: () => Promise<void>
+  addProduct: (data: ProductData) => Promise<void>
+  updateProduct: (id: number, data: ProductData) => Promise<void>
+  deleteProduct: (id: number) => Promise<void>
 }
 
-export const useProductStore = create<ProductStore>()(
-  persist(
-    (set) => ({
-      products: initialProducts,
-      addProduct: (data) =>
-        set((state) => ({
-          products: [...state.products, { id: Date.now(), ...data }],
-        })),
-      updateProduct: (id, data) =>
-        set((state) => ({
-          products: state.products.map((p) => (p.id === id ? { id, ...data } : p)),
-        })),
-      deleteProduct: (id) =>
-        set((state) => ({
-          products: state.products.filter((p) => p.id !== id),
-        })),
-      decreaseStock: (items) =>
-        set((state) => ({
-          products: state.products.map((p) => {
-            const sold = items.find((i) => i.id === p.id)
-            return sold
-              ? { ...p, stock: Math.max(0, p.stock - sold.quantity) }
-              : p
-          }),
-        })),
-    }),
-    { name: 'posvera-products-v2' }
-  )
-)
+export const useProductStore = create<ProductStore>()((set) => ({
+  products: [],
+
+  fetchProducts: async () => {
+    const products = await request<Product[]>('/products')
+    set({ products })
+  },
+
+  addProduct: async (data) => {
+    const product = await request<Product>('/products', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+    set((state) => ({ products: [...state.products, product] }))
+  },
+
+  updateProduct: async (id, data) => {
+    const product = await request<Product>(`/products/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+    set((state) => ({
+      products: state.products.map((p) => (p.id === id ? product : p)),
+    }))
+  },
+
+  deleteProduct: async (id) => {
+    await request<void>(`/products/${id}`, { method: 'DELETE' })
+    set((state) => ({ products: state.products.filter((p) => p.id !== id) }))
+  },
+}))

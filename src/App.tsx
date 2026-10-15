@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import {
   BrowserRouter,
   Navigate,
@@ -6,6 +7,8 @@ import {
   Routes,
 } from 'react-router-dom'
 import { useAuthStore } from './authStore'
+import { useProductStore } from './store'
+import { useSaleStore } from './salesStore'
 import CashierPage from './pages/CashierPage'
 import ProductsPage from './pages/ProductsPage'
 import SalesPage from './pages/SalesPage'
@@ -19,6 +22,18 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 function App() {
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
+  const fetchProducts = useProductStore((state) => state.fetchProducts)
+  const fetchSales = useSaleStore((state) => state.fetchSales)
+
+  useEffect(() => {
+    if (!user) return
+    fetchProducts().catch(() =>
+      alert("Serverga ulanib bo'lmadi. Server ishlayotganini tekshiring.")
+    )
+    if (user.role === 'admin') {
+      fetchSales().catch(() => {})
+    }
+  }, [user, fetchProducts, fetchSales])
 
   if (!user) return <LoginPage />
 

@@ -8,7 +8,7 @@ import type { CartItem, PaymentResult, Product, Sale } from '../types'
 
 function CashierPage() {
   const products = useProductStore((state) => state.products)
-  const decreaseStock = useProductStore((state) => state.decreaseStock)
+  const fetchProducts = useProductStore((state) => state.fetchProducts)
   const addSale = useSaleStore((state) => state.addSale)
   const user = useAuthStore((state) => state.user)
 
@@ -16,6 +16,7 @@ function CashierPage() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [showPayment, setShowPayment] = useState(false)
   const [receipt, setReceipt] = useState<Sale | null>(null)
+  const [saving, setSaving] = useState(false)
 
   const filtered = products.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
@@ -50,18 +51,25 @@ function CashierPage() {
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
-  const handleSuccess = (payment: PaymentResult) => {
-    const sale = addSale({
-      items: cart.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
-      discountAmount: payment.discountAmount,
-      total: payment.finalTotal,
-      method: payment.method,
-      cashier: user?.name,
-    })
-    decreaseStock(cart.map((i) => ({ id: i.id, quantity: i.quantity })))
-    setCart([])
-    setShowPayment(false)
-    setReceipt(sale)
+  const handleSuccess = async (payment: PaymentResult) => {
+    if (saving) return
+    setSaving(true)
+    try {
+      const sale = await addSale({
+        items: cart.map((i) => ({ productId: i.id, quantity: i.quantity })),
+        discountAmount: payment.discountAmount,
+        method: payment.method,
+        cashier: user?.name,
+      })
+      await fetchProducts()
+      setCart([])
+      setShowPayment(false)
+      setReceipt(sale)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Sotuvni saqlashda xato chiqdi")
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
