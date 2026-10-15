@@ -5,6 +5,7 @@ import cors from 'cors'
 import jwt from 'jsonwebtoken'
 import { compare } from 'bcryptjs'
 import { PrismaClient, Prisma } from '@prisma/client'
+import path from 'path'
 
 const app = express()
 const prisma = new PrismaClient()
@@ -226,6 +227,14 @@ app.post('/api/sales', async (req, res) => {
   } catch (e) {
     res.status(400).json({ error: e instanceof Error ? e.message : 'Xato' })
   }
+})
+
+// ---------- Tayyor frontendni ko'rsatish ----------
+
+const distPath = path.join(__dirname, '../../dist')
+app.use(express.static(distPath))
+app.get(/^\/(?!api).*/, (_req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'))
 })
 
 const PORT = 3000
