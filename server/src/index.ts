@@ -1,12 +1,88 @@
+import 'dotenv/config'
 import express from 'express'
+import type { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
+import jwt from 'jsonwebtoken'
+import { compare } from 'bcryptjs'
 import { PrismaClient, Prisma } from '@prisma/client'
 
 const app = express()
 const prisma = new PrismaClient()
 
+const JWT_SECRET = process.env.JWT_SECRET
+if (!JWT_SECRET) {
+  throw new Error('.env faylida JWT_SECRET topilmadi')
+}
+
 app.use(cors())
 app.use(express.json())
+
+// ---------- Autentifikatsiya ----------
+
+type AuthPayload = {
+  id: number
+  username: string
+  name: string
+  role: 'admin' | 'cashier'
+}
+
+// Token borligini va to'g'riligini tekshiradi
+const authRequired = (req: Request, res: Response, next: NextFunction) => {
+  const header = req.headers.authorization
+  const token = header?.startsWith('Bearer ') ? header.slice(7) : null
+
+  if (!token) {
+    res.status(401).json({ error: 'Tizimga kiring' })
+    return
+  }
+
+  try {
+    res.locals.user = jwt.verify(token, JWT_SECRET) as AuthPayload
+    next()
+  } catch {
+    res.status(401).json({ error: 'Sessiya tugagan, qaytadan kiring' })
+  }
+}
+
+// Faqat admin uchun
+const adminOnly = (_req: Request, res: Response, next: NextFunction) => {
+  if (res.locals.user?.role !== 'admin') {
+    res.status(403).json({ error: "Bu amal uchun ruxsat yo'q" })
+    return
+  }
+  next()
+}
+
+app.post('/api/auth/login', async (req, res) => {
+  const { username, password } = req.body
+
+  const user = await prisma.user.findUnique({
+    where: { username: String(username || '') },
+  })
+  const passwordOk =
+    user !== null && (await compare(String(password || ''), user.passwordHash))
+
+  if (!user || !passwordOk) {
+    res.status(401).json({ error: "Login yoki parol noto'g'ri" })
+    return
+  }
+
+  const payload: AuthPayload = {
+    id: user.id,
+    username: user.username,
+    name: user.name,
+    role: user.role as 'admin' | 'cashier',
+  }
+  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '12h' })
+
+  res.json({
+    token,
+    user: { username: user.username, name: user.name, role: user.role },
+  })
+})
+
+// Bundan keyingi hamma /api so'rovlari uchun token shart
+app.use('/api', authRequired)
 
 // ---------- Mahsulotlar ----------
 
@@ -15,7 +91,7 @@ app.get('/api/products', async (_req, res) => {
   res.json(products)
 })
 
-app.post('/api/products', async (req, res) => {
+app.post('/api/products', adminOnly, async (req, res) => {
   const { name, price, category, stock } = req.body
   if (!name || price == null) {
     res.status(400).json({ error: 'Nomi va narxi kerak' })
@@ -32,7 +108,7 @@ app.post('/api/products', async (req, res) => {
   res.status(201).json(product)
 })
 
-app.put('/api/products/:id', async (req, res) => {
+app.put('/api/products/:id', adminOnly, async (req, res) => {
   const { name, price, category, stock } = req.body
   const product = await prisma.product.update({
     where: { id: Number(req.params.id) },
@@ -46,7 +122,7 @@ app.put('/api/products/:id', async (req, res) => {
   res.json(product)
 })
 
-app.delete('/api/products/:id', async (req, res) => {
+app.delete('/api/products/:id', adminOnly, async (req, res) => {
   await prisma.product.delete({ where: { id: Number(req.params.id) } })
   res.status(204).end()
 })
@@ -55,7 +131,6 @@ app.delete('/api/products/:id', async (req, res) => {
 
 type SaleWithItems = Prisma.SaleGetPayload<{ include: { items: true } }>
 
-// Bazadagi sotuvni frontend kutadigan ko'rinishga o'tkazadi
 const toSaleDto = (s: SaleWithItems) => ({
   id: s.id,
   date: s.createdAt.toISOString(),
@@ -70,7 +145,7 @@ const toSaleDto = (s: SaleWithItems) => ({
   cashier: s.cashier ?? undefined,
 })
 
-app.get('/api/sales', async (_req, res) => {
+app.get('/api/sales', adminOnly, async (_req, res) => {
   const sales = await prisma.sale.findMany({
     orderBy: { createdAt: 'desc' },
     include: { items: true },
@@ -79,7 +154,7 @@ app.get('/api/sales', async (_req, res) => {
 })
 
 app.post('/api/sales', async (req, res) => {
-  const { items, discountAmount, method, cashier } = req.body
+  const { items, discountAmount, method } = req.body
 
   if (!Array.isArray(items) || items.length === 0) {
     res.status(400).json({ error: "Savat bo'sh" })
@@ -139,7 +214,8 @@ app.post('/api/sales', async (req, res) => {
           discountAmount: discount,
           total: subtotal - discount,
           method,
-          cashier: cashier || null,
+          // Kassir nomi tokendan olinadi, frontenddan emas
+          cashier: res.locals.user.name,
           items: { create: lines },
         },
         include: { items: true },

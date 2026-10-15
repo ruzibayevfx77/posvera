@@ -36,3 +36,11 @@ model SaleItem {
   price     Int
   quantity  Int
 }
+
+model User {
+  id           Int    @id @default(autoincrement())
+  username     String @unique
+  passwordHash String
+  name         String
+  role         String
+}

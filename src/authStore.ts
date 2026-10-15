@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { API_URL } from './config'
 
 export type Role = 'admin' | 'cashier'
 
@@ -9,14 +10,11 @@ export type User = {
   role: Role
 }
 
-const USERS: (User & { password: string })[] = [
-  { username: 'admin', password: 'admin123', name: 'Administrator', role: 'admin' },
-  { username: 'kassir', password: 'kassir123', name: 'Kassir', role: 'cashier' },
-]
-
 type AuthStore = {
   user: User | null
-  login: (username: string, password: string) => boolean
+  token: string | null
+  // Xato bo'lsa xabar matnini, muvaffaqiyatli bo'lsa null qaytaradi
+  login: (username: string, password: string) => Promise<string | null>
   logout: () => void
 }
 
@@ -24,18 +22,27 @@ export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
       user: null,
-      login: (username, password) => {
-        const found = USERS.find(
-          (u) => u.username === username && u.password === password
-        )
-        if (!found) return false
-        set({
-          user: { username: found.username, name: found.name, role: found.role },
-        })
-        return true
+      token: null,
+
+      login: async (username, password) => {
+        try {
+          const res = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+          })
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) return data.error || 'Xato chiqdi'
+
+          set({ user: data.user, token: data.token })
+          return null
+        } catch {
+          return "Serverga ulanib bo'lmadi"
+        }
       },
-      logout: () => set({ user: null }),
+
+      logout: () => set({ user: null, token: null }),
     }),
-    { name: 'posvera-auth' }
+    { name: 'posvera-auth-v2' }
   )
 )

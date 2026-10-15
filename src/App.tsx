@@ -27,8 +27,8 @@ function App() {
 
   useEffect(() => {
     if (!user) return
-    fetchProducts().catch(() =>
-      alert("Serverga ulanib bo'lmadi. Server ishlayotganini tekshiring.")
+    fetchProducts().catch((e) =>
+      alert(e instanceof Error ? e.message : 'Xato chiqdi')
     )
     if (user.role === 'admin') {
       fetchSales().catch(() => {})
